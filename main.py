@@ -1,23 +1,17 @@
-"""
-See YouTube tutorial here: https://youtu.be/0_QskeU8CPo
-"""
-
 bl_info = {
-    "name": "My Custom Panel",
-    "author": "Victor Stepanov",
-    "version": (0, 0, 1),
-    "blender": (2, 80, 0),
-    "location": "3D Viewport > Sidebar > My Custom Panel category",
-    "description": "My custom operator buttons",
-    "category": "Development",
+    "name": "Gravity addon",
+    "author": "Pablo Hernández",
+    "version": (1, 1, 0),
+    "blender": (4, 1, 1),
+    "location": "3D Viewport > Sidebar > Gravity",
+    "description": "Allows to easily create gravity related animations",
+    "category": "Animation",
 }
 
-
 import bpy
-import math
 
 # Funcion encargada de dibujar cada uno de los keyframes
-def set_gravity(t0, g, v0, yf, bouncy):
+def set_gravity(t0, g, v0, yf, bouncy, axis):
     # Comienza recogiendo todos los objetos seleccionados
     items = bpy.context.selected_objects
 
@@ -25,12 +19,15 @@ def set_gravity(t0, g, v0, yf, bouncy):
     for i in items: # Itera por cada objeto de la lista
         # Reestablece el temporizador e imprime informacion basica
         t = 0
-        h = i.location[2]
+
+        axis = int(axis)
+        h = i.location[axis]
+
         if ( yf == h ): return
-        print(f"item: {i}, location:{i.location}, z:{i.location[2]}")
+        print(f"item: {i}, location:{i.location}, z:{i.location[axis]}")
         i.keyframe_insert(data_path="location", frame=t0)
         
-        i.location[2] = yf
+        i.location[axis] = yf
         tf = int(abs(pow((2 * h-yf) / g, 0.5)))
         print(f"tf: {tf}")
 
@@ -91,10 +88,22 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
         description="Choose between bouncy falling or non-bouncy",
     )
 
+    # Parametro del eje
+    axis: bpy.props.EnumProperty(
+        items = [
+            ("0", "X", "X Axis", 0),
+            ("1", "Y", "Y Axis", 1),
+            ("2", "Z", "Z Axis", 2),
+        ],
+        name = "Axis",
+        description = "Choose the axis in wich the item will be falling",
+        default = "2"
+    )
+
     def execute(self, context):
 
         # Trigger de la funcion de los keyframes
-        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness)
+        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis)
 
         return {"FINISHED"}
 
@@ -113,7 +122,6 @@ class VIEW3D_PT_gravity(bpy.types.Panel):
         row = self.layout.row()
         row.operator("anim.set_gravity", text="Set gravity")
 
-
 # Registrar contenidos
 def register():
     bpy.utils.register_class(VIEW3D_PT_gravity)
@@ -123,7 +131,6 @@ def register():
 def unregister():
     bpy.utils.unregister_class(VIEW3D_PT_gravity)
     bpy.utils.unregister_class(ANIM_OT_set_gravity)
-
 
 if __name__ == "__main__":
     register()
