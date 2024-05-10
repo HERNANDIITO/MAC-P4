@@ -17,14 +17,16 @@ import bpy
 import math
 
 # Funcion encargada de dibujar cada uno de los keyframes
-def set_gravity(t0, g, v0, yf):
+def set_gravity(t0, g, v0, yf, bouncy):
     # Comienza recogiendo todos los objetos seleccionados
     items = bpy.context.selected_objects
+
 
     for i in items: # Itera por cada objeto de la lista
         # Reestablece el temporizador e imprime informacion basica
         t = 0
         h = i.location[2]
+        if ( yf == h ): return
         print(f"item: {i}, location:{i.location}, z:{i.location[2]}")
         i.keyframe_insert(data_path="location", frame=t0)
         
@@ -32,12 +34,20 @@ def set_gravity(t0, g, v0, yf):
         tf = int(abs(pow((2 * h-yf) / g, 0.5)))
         print(f"tf: {tf}")
 
-        i.keyframe_insert(data_path="location", frame=t0 + (24 * tf))
+        if bouncy:
+            i.keyframe_insert(data_path="location", frame=t0 + (24 * tf))
+        else:
+            i.keyframe_insert(data_path="location", frame=t0 + ((24 * tf)/2))
 
         for fcurve in i.animation_data.action.fcurves:
             kf = fcurve.keyframe_points[-2]
-            kf.interpolation = 'BOUNCE'
-            kf.easing = 'EASE_OUT'
+            if bouncy: 
+                kf.interpolation = 'BOUNCE'
+                kf.easing = 'EASE_OUT'
+            else:
+                kf.interpolation = 'CUBIC'
+                kf.easing = 'EASE_IN'
+
 
 class ANIM_OT_set_gravity(bpy.types.Operator):
 
@@ -74,10 +84,17 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
         description="Choose the final position of an object",
     )
 
+    # Parametro de rebote
+    bounciness: bpy.props.BoolProperty(
+        name="Bounciness",
+        default=True,
+        description="Choose between bouncy falling or non-bouncy",
+    )
+
     def execute(self, context):
 
         # Trigger de la funcion de los keyframes
-        set_gravity(self.t0, self.gravity, self.v0, self.finalPos)
+        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness)
 
         return {"FINISHED"}
 
