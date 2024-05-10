@@ -14,6 +14,7 @@ bl_info = {
 
 
 import bpy
+import math
 
 # Funcion encargada de dibujar cada uno de los keyframes
 def set_gravity(t0, g, v0, yf):
@@ -23,21 +24,20 @@ def set_gravity(t0, g, v0, yf):
     for i in items: # Itera por cada objeto de la lista
         # Reestablece el temporizador e imprime informacion basica
         t = 0
+        h = i.location[2]
         print(f"item: {i}, location:{i.location}, z:{i.location[2]}")
+        i.keyframe_insert(data_path="location", frame=t0)
+        
+        i.location[2] = yf
+        tf = int(abs(pow((2 * h-yf) / g, 0.5)))
+        print(f"tf: {tf}")
 
-        while(i.location[2] > yf): #Itera hasta que el objeto toque el suelo
-            # Formula de la caida libre
-            i.location[2] = i.location[2] - (v0 * t) + ((g * pow(t, 2))/2)
+        i.keyframe_insert(data_path="location", frame=t0 + (24 * tf))
 
-            # Corrige la posicion del objeto si ha llegado mas alla de la posicion deseada
-            if ( i.location[2] < yf ): i.location[2] = 0
-
-            # Inserta el keyframe
-            i.keyframe_insert(data_path="location", frame=t0 + (10 * t))
-
-            # Imprime informacion e incrementa el temporizador
-            print(f"t: {t}, pos: {i.location[0]}")
-            t += 1
+        for fcurve in i.animation_data.action.fcurves:
+            kf = fcurve.keyframe_points[-2]
+            kf.interpolation = 'BOUNCE'
+            kf.easing = 'EASE_OUT'
 
 class ANIM_OT_set_gravity(bpy.types.Operator):
 
@@ -81,7 +81,6 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
 
         return {"FINISHED"}
 
-
 class VIEW3D_PT_gravity(bpy.types.Panel): 
 
     # Posicionamiento del panel
@@ -105,8 +104,8 @@ def register():
 
 # "Desregistrar" contenidos por si ya existen
 def unregister():
-    bpy.utils.unregister_class(ANIM_OT_set_gravity)
     bpy.utils.unregister_class(VIEW3D_PT_gravity)
+    bpy.utils.unregister_class(ANIM_OT_set_gravity)
 
 
 if __name__ == "__main__":
