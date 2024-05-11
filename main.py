@@ -9,33 +9,108 @@ bl_info = {
 }
 
 import bpy
+import mathutils
+import numpy
+
+# Convierte los vectores globales a relativos
+def globalToLocal(objectForLocal, vectorOrTupleToConv):
+    vectorified = mathutils.Vector(vectorOrTupleToConv)
+    return objectForLocal.matrix_world.inverted() @ vectorified
+    
+# Convierte los vectores relativos a globale
+def localToGlobal(obj, vectorOrTupleToConv):
+    vectorified = mathutils.Vector(vectorOrTupleToConv)
+    return obj.matrix_world @ vectorified
+
+# Obtiene la colision dada la lista de obstaculos, la direccion, el objeto y el eje
+def getCollission(obstacles, gDirection, i, axis):
+    result = False # Valor por defecto para comparar
+
+    # Iteramos por cada posible obstaculo en la escena
+    for obstacle in obstacles:
+        # Comprobamos que sea un objeto tipo mesh y que no sea el propio objeto
+        if obstacle.type != "MESH" or obstacle == i:
+            continue
+
+        # Declaracion de variables
+        # Convertimos las coorenadas del obstaculo en relativas al objeto
+        origin = globalToLocal(obstacle, i.location)
+
+        # Origen del obstaculo
+        obstacle_origin = mathutils.Vector((0,0,0))
+
+        # Direccion
+        direction = obstacle_origin - origin
+
+        # Comprobamos
+        is_hit, location, _, _ = obstacle.ray_cast(origin, direction)
+
+        # Comprobamos que el otro objeto este justo "debajo"
+        if ( axis == 0 ):
+            if ( location[1] != 0 or location[2] != 0 ): continue
+            
+        if ( axis == 1 ):
+            if ( location[0] != 0 or location[2] != 0 ): continue
+
+        if ( axis == 2 ):
+            if ( location[1] != 0 or location[0] != 0 ): continue
+
+        # Comprobamos que haya habido hit y direccion
+        if is_hit and direction:
+            # Convertimos el 
+            world_loc = localToGlobal(obstacle, location)
+            print("wordl_loc:", world_loc)
+            result = world_loc[axis] - (i.dimensions[axis] / 2 * gDirection) * numpy.sign(world_loc[axis])
+            break
+        
+    return result
 
 # Funcion encargada de dibujar cada uno de los keyframes
-def set_gravity(t0, g, v0, yf, bouncy, axis):
+def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions):
     # Comienza recogiendo todos los objetos seleccionados
     items = bpy.context.selected_objects
 
+    context = bpy.context
 
     for i in items: # Itera por cada objeto de la lista
         # Reestablece el temporizador e imprime informacion basica
         t = 0
-
+        gDirection = numpy.sign(g)
         axis = int(axis)
         h = i.location[axis]
+        d = h-yf
 
+        # Comprobamos si el usuario quiere que calculemos colisiones
+        if calculateCollissions:
+            # Las calculamos (mas info en la funcion)
+            collission = getCollission(obstacles=context.scene.objects, gDirection=gDirection, i=i, axis=axis)
+
+            # En caso de encontrarla, sobreescribimos la posicion final
+            if ( collission != False ):
+                yf = collission
+
+        # Comprobamos que el objeto no este ya en la posicion final
         if ( yf == h ): return
         print(f"item: {i}, location:{i.location}, z:{i.location[axis]}")
+
+        # Insertamos el keyframe en la posicion inicial
         i.keyframe_insert(data_path="location", frame=t0)
         
+        # Colocamos el objeto en la posicion final
         i.location[axis] = yf
-        tf = int(abs(pow((2 * h-yf) / g, 0.5)))
+        print(f"h - yf: {h} - {yf} = {h- yf}")
+
+        # Calculamos el tiempo que tardara en caer
+        tf = int(abs(pow(abs((2 * (h-yf)) / g), 0.5)))
         print(f"tf: {tf}")
 
+        # Dependiendo de si se busca una animacion con rebote o no establecemos un tiempo u otro
         if bouncy:
             i.keyframe_insert(data_path="location", frame=t0 + (24 * tf))
         else:
             i.keyframe_insert(data_path="location", frame=t0 + ((24 * tf)/2))
 
+        # Dependiendo de si se busca una animacion con rebote o no ponemos un tipo de interpolacion u otra
         for fcurve in i.animation_data.action.fcurves:
             kf = fcurve.keyframe_points[-2]
             if bouncy: 
@@ -58,6 +133,18 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
         name="Start time",
         default=0,
         description="Choose the moment when the object starts falling",
+    )
+
+    # Parametro del eje
+    axis: bpy.props.EnumProperty(
+        items = [
+            ("0", "X", "X Axis", 0),
+            ("1", "Y", "Y Axis", 1),
+            ("2", "Z", "Z Axis", 2),
+        ],
+        name = "Axis",
+        description = "Choose the axis in wich the item will be falling",
+        default = "2"
     )
 
     # Parametro de aceleracion
@@ -88,22 +175,17 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
         description="Choose between bouncy falling or non-bouncy",
     )
 
-    # Parametro del eje
-    axis: bpy.props.EnumProperty(
-        items = [
-            ("0", "X", "X Axis", 0),
-            ("1", "Y", "Y Axis", 1),
-            ("2", "Z", "Z Axis", 2),
-        ],
-        name = "Axis",
-        description = "Choose the axis in wich the item will be falling",
-        default = "2"
+    # Parametro de colision
+    colissions: bpy.props.BoolProperty(
+        name="Collide with objects",
+        default=True,
+        description="Choose if the object is going to collide with meshes or not",
     )
 
     def execute(self, context):
 
         # Trigger de la funcion de los keyframes
-        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis)
+        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis, self.colissions)
 
         return {"FINISHED"}
 
