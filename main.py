@@ -125,7 +125,7 @@ def particle_setup(i, yf, axis, gDirection, tf):
 
 
 # Funcion encargada de dibujar cada uno de los keyframes
-def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions, getParticles):
+def set_gravity(t0, g, yf, bouncy, axis, calculateCollissions, getParticles):
     # Comienza recogiendo todos los objetos seleccionados
     items = bpy.context.selected_objects
     context = bpy.context
@@ -217,13 +217,6 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
         description="Choose the force of attraction",
     )
     
-    # Parametro de velocidad inicial
-    v0: bpy.props.FloatProperty(
-        name="Initial speed",
-        default=0,
-        description="Choose the initial speed of the object",
-    )
-    
     # Parametro de posicion final
     finalPos: bpy.props.FloatProperty(
         name="Final position",
@@ -254,7 +247,7 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
 
     def execute(self, context):
         # Trigger de la funcion de los keyframes
-        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis, self.colissions, self.particles)
+        set_gravity(self.t0, self.gravity, self.finalPos, self.bounciness, self.axis, self.colissions, self.particles)
 
         return {"FINISHED"}
 
