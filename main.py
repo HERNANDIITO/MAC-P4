@@ -11,6 +11,7 @@ bl_info = {
 import bpy
 import mathutils
 import numpy
+import os
 
 # Convierte los vectores globales a relativos
 def globalToLocal(objectForLocal, vectorOrTupleToConv):
@@ -66,11 +67,16 @@ def getCollission(obstacles, gDirection, i, axis):
     return result
 
 # Funcion encargada de dibujar cada uno de los keyframes
-def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions):
+def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions, getParticles):
     # Comienza recogiendo todos los objetos seleccionados
     items = bpy.context.selected_objects
 
     context = bpy.context
+    
+
+    if getParticles:
+        file_loc = os.getcwd() + "\\obj\\particles.obj"
+        print("file: " +file_loc)
 
     for i in items: # Itera por cada objeto de la lista
         # Reestablece el temporizador e imprime informacion basica
@@ -182,10 +188,17 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
         description="Choose if the object is going to collide with meshes or not",
     )
 
+    # Parametro de particulas
+    particles: bpy.props.BoolProperty(
+        name="Collide with objects",
+        default=True,
+        description="Choose if the object is going to collide with meshes or not",
+    )
+
     def execute(self, context):
 
         # Trigger de la funcion de los keyframes
-        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis, self.colissions)
+        set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis, self.colissions, self.particles)
 
         return {"FINISHED"}
 
