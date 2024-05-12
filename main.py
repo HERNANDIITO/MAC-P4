@@ -74,17 +74,22 @@ def getCollission(obstacles, gDirection, i, axis):
 
 def particle_setup(i, yf, axis, gDirection, tf):
     global particle_cont
-
+    # Recogemos el contador y lo formateamos
     dotCont = (f"{particle_cont}").zfill(3)
+
+    # Recogemos el fichero con las particulas, el campo de fuerza y el plano y los importamos en el .blend actual
     file_loc = os.getcwd() + "\\particles\\dust.blend\\Collection\\"
     bpy.ops.wm.append(directory=file_loc, filename="dust_particles")
     print(i.name)
+
+    # Modificamos los nombres
     col = bpy.data.collections.get("dust_particles")
     col.name = f"{i.name}-particles-{dotCont}"
 
     print("dust." + (f"{particle_cont}").zfill(3))
     print("particles." + (f"{particle_cont}").zfill(3))
 
+    # Recogemos el particleEmitter
     if particle_cont == 0:
         particleEmitter = col.all_objects.get("particles")
     else:            
@@ -92,7 +97,7 @@ def particle_setup(i, yf, axis, gDirection, tf):
 
     print("particle Axis: ", axis)
 
-    
+    # Orientamos el particleEmitter segun los parametros del usuario
     mirror = True
     if ( numpy.sign(gDirection) == -1 ):
         mirror = False
@@ -103,21 +108,21 @@ def particle_setup(i, yf, axis, gDirection, tf):
         else:
             particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(90.0) * gDirection, 0.0), 'XYZ')
 
-        
     if ( axis == 1 ):
         if mirror:
             particleEmitter.rotation_euler = mathutils.Euler((math.radians(90.0) * gDirection, 0, 0.0), 'XYZ')
         else:
             particleEmitter.rotation_euler = mathutils.Euler((math.radians(-90.0) * gDirection, 0, 0.0), 'XYZ')
 
-
     if ( axis == 2 ):
         if mirror:
             particleEmitter.rotation_euler = mathutils.Euler((math.radians(90)), 0, 0, 'XYZ')
 
+    # Colocamos el particleEmitter
     particleEmitter.location = i.location
     particleEmitter.location[axis] = particleEmitter.location[axis] + ((i.dimensions[axis]/2) * gDirection)
-
+    
+    # Configuramos el particleEmitter con el comienzo y el final de las particulas
     pSys = particleEmitter.particle_systems[0]
 
     pSys.settings.frame_start = tf
