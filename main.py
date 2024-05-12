@@ -290,11 +290,13 @@ class VIEW3D_PT_gravity(bpy.types.Panel):
 
 # Registrar contenidos
 def register():
+    bpy.utils.register_class(ANIM_OT_inc_cont)
     bpy.utils.register_class(VIEW3D_PT_gravity)
     bpy.utils.register_class(ANIM_OT_set_gravity)
 
 # "Desregistrar" contenidos por si ya existen
 def unregister():
+    bpy.utils.unregister_class(ANIM_OT_inc_cont)
     bpy.utils.unregister_class(VIEW3D_PT_gravity)
     bpy.utils.unregister_class(ANIM_OT_set_gravity)
 
