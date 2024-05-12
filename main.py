@@ -1,16 +1,19 @@
 bl_info = {
     "name": "Gravity addon",
     "author": "Pablo Hernández",
-    "version": (1, 1, 0),
+    "version": (2, 0, 0),
     "blender": (4, 1, 1),
     "location": "3D Viewport > Sidebar > Gravity",
     "description": "Allows to easily create gravity related animations",
     "category": "Animation",
 }
 
+particle_cont = 0
+
 import bpy
 import mathutils
 import numpy
+import math
 import os
 
 # Convierte los vectores globales a relativos
@@ -31,6 +34,9 @@ def getCollission(obstacles, gDirection, i, axis):
     for obstacle in obstacles:
         # Comprobamos que sea un objeto tipo mesh y que no sea el propio objeto
         if obstacle.type != "MESH" or obstacle == i:
+            continue
+        
+        if obstacle.name == "particles" or obstacle.name == "force_field" or obstacle.name == "dust":
             continue
 
         # Declaracion de variables
@@ -61,24 +67,71 @@ def getCollission(obstacles, gDirection, i, axis):
             # Convertimos el 
             world_loc = localToGlobal(obstacle, location)
             print("wordl_loc:", world_loc)
-            result = world_loc[axis] - (i.dimensions[axis] / 2 * gDirection) * numpy.sign(world_loc[axis])
+            result = world_loc[axis] - (i.dimensions[axis]/2 * gDirection)
             break
         
     return result
+
+def particle_setup(i, yf, axis, gDirection, tf):
+    global particle_cont
+
+    dotCont = (f"{particle_cont}").zfill(3)
+    file_loc = os.getcwd() + "\\particles\\dust.blend\\Collection\\"
+    bpy.ops.wm.append(directory=file_loc, filename="dust_particles")
+    print(i.name)
+    col = bpy.data.collections.get("dust_particles")
+    col.name = f"{i.name}-particles-{dotCont}"
+
+    print("dust." + (f"{particle_cont}").zfill(3))
+    print("particles." + (f"{particle_cont}").zfill(3))
+
+    if particle_cont == 0:
+        particleEmitter = col.all_objects.get("particles")
+    else:            
+        particleEmitter = col.all_objects.get(f"particles.{dotCont}")
+
+    print("particle Axis: ", axis)
+
+    
+    mirror = True
+    if ( numpy.sign(gDirection) == -1 ):
+        mirror = False
+
+    if ( axis == 0 ):
+        if mirror:
+            particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(-90.0) * gDirection, 0.0), 'XYZ')
+        else:
+            particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(90.0) * gDirection, 0.0), 'XYZ')
+
+        
+    if ( axis == 1 ):
+        if mirror:
+            particleEmitter.rotation_euler = mathutils.Euler((math.radians(90.0) * gDirection, 0, 0.0), 'XYZ')
+        else:
+            particleEmitter.rotation_euler = mathutils.Euler((math.radians(-90.0) * gDirection, 0, 0.0), 'XYZ')
+
+
+    if ( axis == 2 ):
+        if mirror:
+            particleEmitter.rotation_euler = mathutils.Euler((math.radians(90)), 0, 0, 'XYZ')
+
+    particleEmitter.location = i.location
+    particleEmitter.location[axis] = particleEmitter.location[axis] + ((i.dimensions[axis]/2) * gDirection)
+
+    pSys = particleEmitter.particle_systems[0]
+
+    pSys.settings.frame_start = tf
+    pSys.settings.frame_end = tf + 24
+
 
 # Funcion encargada de dibujar cada uno de los keyframes
 def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions, getParticles):
     # Comienza recogiendo todos los objetos seleccionados
     items = bpy.context.selected_objects
-
     context = bpy.context
-    
-
-    if getParticles:
-        file_loc = os.getcwd() + "\\obj\\particles.obj"
-        print("file: " +file_loc)
 
     for i in items: # Itera por cada objeto de la lista
+
         # Reestablece el temporizador e imprime informacion basica
         t = 0
         gDirection = numpy.sign(g)
@@ -103,7 +156,7 @@ def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions, getParticles)
         i.keyframe_insert(data_path="location", frame=t0)
         
         # Colocamos el objeto en la posicion final
-        i.location[axis] = yf
+        i.location[axis] = yf - (i.dimensions[axis]/2 * gDirection)
         print(f"h - yf: {h} - {yf} = {h- yf}")
 
         # Calculamos el tiempo que tardara en caer
@@ -117,6 +170,10 @@ def set_gravity(t0, g, v0, yf, bouncy, axis, calculateCollissions, getParticles)
             i.keyframe_insert(data_path="location", frame=t0 + ((24 * tf)/2))
 
         # Dependiendo de si se busca una animacion con rebote o no ponemos un tipo de interpolacion u otra
+        
+        if getParticles:
+            particle_setup(i, yf, axis, gDirection, tf*24)
+            
         for fcurve in i.animation_data.action.fcurves:
             kf = fcurve.keyframe_points[-2]
             if bouncy: 
@@ -190,15 +247,27 @@ class ANIM_OT_set_gravity(bpy.types.Operator):
 
     # Parametro de particulas
     particles: bpy.props.BoolProperty(
-        name="Collide with objects",
+        name="Display particles",
         default=True,
-        description="Choose if the object is going to collide with meshes or not",
+        description="Choose if the object is going to emit particles on collission or not",
     )
 
     def execute(self, context):
-
         # Trigger de la funcion de los keyframes
         set_gravity(self.t0, self.gravity, self.v0, self.finalPos, self.bounciness, self.axis, self.colissions, self.particles)
+
+        return {"FINISHED"}
+
+class ANIM_OT_inc_cont(bpy.types.Operator):
+
+    # Declaracion de la clase
+    bl_idname = "anim.inc_cont"
+    bl_label = "Increment particle counter"
+    bl_options = {"REGISTER", "UNDO"}
+
+    def execute(self, context):
+        global particle_cont
+        particle_cont += 1
 
         return {"FINISHED"}
 
@@ -216,6 +285,8 @@ class VIEW3D_PT_gravity(bpy.types.Panel):
         # Definimos el layout
         row = self.layout.row()
         row.operator("anim.set_gravity", text="Set gravity")
+        row = self.layout.row()
+        row.operator("anim.inc_cont", text="Increment particle counter")
 
 # Registrar contenidos
 def register():
