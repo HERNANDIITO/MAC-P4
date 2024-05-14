@@ -66,8 +66,8 @@ def getCollission(obstacles, gDirection, i, axis):
         if is_hit and direction:
             # Convertimos el 
             world_loc = localToGlobal(obstacle, location)
-            print("wordl_loc:", world_loc)
-            result = world_loc[axis] - (i.dimensions[axis]/2 * gDirection)
+            print("wordl_loc:", world_loc, "gDirection: ", gDirection)
+            result = world_loc[axis]
             break
         
     return result
@@ -95,28 +95,28 @@ def particle_setup(i, yf, axis, gDirection, tf):
     else:            
         particleEmitter = col.all_objects.get(f"particles.{dotCont}")
 
-    print("particle Axis: ", axis)
 
     # Orientamos el particleEmitter segun los parametros del usuario
     mirror = True
-    if ( numpy.sign(gDirection) == -1 ):
+    if ( int(gDirection) == -1 ):
         mirror = False
+    print("particle Axis: ", axis, "mirror: ", mirror, "gDirection: ", gDirection)
 
     if ( axis == 0 ):
         if mirror:
-            particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(-90.0) * gDirection, 0.0), 'XYZ')
+            particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(-90.0), 0.0), 'XYZ')
         else:
-            particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(90.0) * gDirection, 0.0), 'XYZ')
+            particleEmitter.rotation_euler = mathutils.Euler((0.0, math.radians(90.0), 0.0), 'XYZ')
 
     if ( axis == 1 ):
         if mirror:
-            particleEmitter.rotation_euler = mathutils.Euler((math.radians(90.0) * gDirection, 0, 0.0), 'XYZ')
+            particleEmitter.rotation_euler = mathutils.Euler((math.radians(90.0), 0, 0.0), 'XYZ')
         else:
-            particleEmitter.rotation_euler = mathutils.Euler((math.radians(-90.0) * gDirection, 0, 0.0), 'XYZ')
+            particleEmitter.rotation_euler = mathutils.Euler((math.radians(-90.0), 0, 0.0), 'XYZ')
 
     if ( axis == 2 ):
         if mirror:
-            particleEmitter.rotation_euler = mathutils.Euler((math.radians(90)), 0, 0, 'XYZ')
+            particleEmitter.rotation_euler = mathutils.Euler((math.radians(180), 0, 0), 'XYZ')
 
     # Colocamos el particleEmitter
     particleEmitter.location = i.location
